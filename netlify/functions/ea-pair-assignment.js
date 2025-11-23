@@ -1,30 +1,38 @@
-import { executeQuery } from '../db-config.js';
+import { executeQuery } from './db-config.js';
 
-export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+export async function handler(event, context) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod !== 'GET') {
+    return { 
+      statusCode: 405, 
+      headers, 
+      body: JSON.stringify({ error: 'Method not allowed' }) 
+    };
   }
 
-  const { ea_id, pair_id } = req.query;
+  const { ea_id, pair_id } = event.queryStringParameters;
 
   if (!ea_id || !pair_id) {
-    return res.status(400).json({ 
-      success: false,
-      error: 'Missing ea_id or pair_id parameter' 
-    });
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ 
+        success: false,
+        error: 'Missing ea_id or pair_id parameter' 
+      })
+    };
   }
 
   try {
-    // Query to get EA-pair assignment with joined data
     const assignmentResult = await executeQuery(
       `SELECT 
         epa.*,
@@ -39,33 +47,39 @@ export default async function handler(req, res) {
     );
 
     if (assignmentResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'EA-Pair assignment not found'
-      });
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ success: false, error: 'EA-Pair assignment not found' })
+      };
     }
 
     const assignment = assignmentResult.rows[0];
 
-    return res.status(200).json({
-      success: true,
-      assignment: {
-        id: assignment.id,
-        ea_id: assignment.ea_id,
-        ea_name: assignment.ea_name,
-        pair_id: assignment.pair_id,
-        pair_name: assignment.pair_name,
-        pair_category: assignment.pair_category,
-        state: assignment.state,
-        created_at: assignment.created_at
-      }
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        assignment: {
+          id: assignment.id,
+          ea_id: assignment.ea_id,
+          ea_name: assignment.ea_name,
+          pair_id: assignment.pair_id,
+          pair_name: assignment.pair_name,
+          pair_category: assignment.pair_category,
+          state: assignment.state,
+          created_at: assignment.created_at
+        }
+      })
+    };
 
   } catch (error) {
     console.error('Database error:', error);
-    return res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 }
