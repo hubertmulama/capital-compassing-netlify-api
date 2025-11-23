@@ -1,0 +1,18 @@
+[build]
+  publish = "public"          # ← Points to 'public' folder
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Redirect API calls to Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Simple landing page
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
