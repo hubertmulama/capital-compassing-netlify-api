@@ -1,0 +1,15 @@
+{
+  "name": "mt5-ea-api",
+  "version": "1.0.0",
+  "description": "MT5 EA Backend API for Netlify Functions",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'No build process needed for API functions'"
+  },
+  "dependencies": {
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": "18"
+  }
+}
