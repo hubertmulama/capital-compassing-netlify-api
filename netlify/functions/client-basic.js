@@ -1,37 +1,36 @@
-import { executeQuery } from '../db-config.js';
+import { executeQuery } from './db-config.js';
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+export async function handler(event, context) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod !== 'GET') {
+    return { 
+      statusCode: 405, 
+      headers, 
+      body: JSON.stringify({ error: 'Method not allowed' }) 
+    };
   }
 
-  // ADD DEBUG LOGGING HERE
-  console.log('=== CLIENT-BASIC API CALL ===');
-  console.log('Full URL:', req.url);
-  console.log('Query parameters:', req.query);
-  console.log('Raw mt5_name from query:', req.query.mt5_name);
-  console.log('Type of mt5_name:', typeof req.query.mt5_name);
-
-  let { mt5_name } = req.query;
+  const { mt5_name } = event.queryStringParameters;
 
   if (!mt5_name) {
-    console.log('ERROR: mt5_name is null or undefined');
-    return res.status(400).json({ 
-      success: false,
-      error: 'Missing mt5_name parameter' 
-    });
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ 
+        success: false,
+        error: 'Missing mt5_name parameter' 
+      })
+    };
   }
-
-  console.log('mt5_name after extraction:', mt5_name);
-  console.log('mt5_name length:', mt5_name.length);
 
   try {
     const clientResult = await executeQuery(
@@ -44,13 +43,12 @@ export default async function handler(req, res) {
       [mt5_name]
     );
 
-    console.log('Database query results:', clientResult.rows.length, 'rows found');
-
     if (clientResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Client not found'
-      });
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Client not found' })
+      };
     }
 
     const row = clientResult.rows[0];
@@ -67,25 +65,30 @@ export default async function handler(req, res) {
       return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
 
-    return res.status(200).json({
-      success: true,
-      client: {
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        client_state: row.client_state,
-        client_created_at: formatPostgresDate(row.client_created_at),
-        mt5_name: row.mt5_name,
-        mt5_state: row.mt5_state,
-        mt5_created_at: formatPostgresDate(row.mt5_created_at)
-      }
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        client: {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          client_state: row.client_state,
+          client_created_at: formatPostgresDate(row.client_created_at),
+          mt5_name: row.mt5_name,
+          mt5_state: row.mt5_state,
+          mt5_created_at: formatPostgresDate(row.mt5_created_at)
+        }
+      })
+    };
 
   } catch (error) {
     console.error('Database error:', error);
-    return res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: error.message })
+    };
   }
 }
