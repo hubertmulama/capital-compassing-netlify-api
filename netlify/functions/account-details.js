@@ -19,14 +19,31 @@ export async function handler(event, context) {
     };
   }
 
+  console.log('Raw event body:', event.body);
+  console.log('Body type:', typeof event.body);
+
   let body;
   try {
-    body = JSON.parse(event.body);
+    // Try to parse JSON - MQL5 might be sending it as a string that needs parsing
+    if (typeof event.body === 'string') {
+      body = JSON.parse(event.body);
+    } else if (event.body) {
+      body = event.body;
+    } else {
+      throw new Error('Empty body');
+    }
+    console.log('Parsed body:', body);
   } catch (error) {
+    console.error('JSON parse error:', error);
+    console.error('Raw body that failed:', event.body);
     return {
       statusCode: 400,
       headers,
-      body: JSON.stringify({ success: false, error: 'Invalid JSON body' })
+      body: JSON.stringify({ 
+        success: false, 
+        error: 'Invalid JSON body: ' + error.message,
+        receivedBody: event.body
+      })
     };
   }
 
@@ -74,6 +91,8 @@ export async function handler(event, context) {
       [mt5_name_id, account_number, balance, equity, margin, free_margin, leverage]
     );
 
+    console.log('Database operation successful:', insertResult.rows[0]);
+
     return {
       statusCode: 200,
       headers,
@@ -89,7 +108,10 @@ export async function handler(event, context) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ success: false, error: error.message })
+      body: JSON.stringify({ 
+        success: false,
+        error: error.message 
+      })
     };
   }
 }
