@@ -1,5 +1,4 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.RAILWAY_DATABASE_URL,
@@ -7,10 +6,23 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-export async function executeQuery(sql, params = []) {
+// Create connection function
+async function getConnection() {
+  try {
+    const client = await pool.connect();
+    console.log('✅ Database connection established to Railway PostgreSQL');
+    return client;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    throw error;
+  }
+}
+
+// Query helper function
+async function executeQuery(sql, params = []) {
   let client;
   try {
-    client = await pool.connect();
+    client = await getConnection();
     const result = await client.query(sql, params);
     return result;
   } finally {
@@ -19,3 +31,10 @@ export async function executeQuery(sql, params = []) {
     }
   }
 }
+
+// Export using CommonJS
+module.exports = {
+  getConnection,
+  executeQuery,
+  pool
+};
