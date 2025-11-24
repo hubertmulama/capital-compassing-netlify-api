@@ -1,5 +1,5 @@
 // Netlify serverless function - must export a handler
-const { executeQuery } = require('../db-config.js');
+const { executeQuery } = require('./db-config.js');
 
 exports.handler = async (event, context) => {
   // Set CORS headers for Netlify
