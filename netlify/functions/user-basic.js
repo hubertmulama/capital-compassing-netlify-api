@@ -1,28 +1,49 @@
-import { executeQuery } from '../db-config.js';
+// Netlify serverless function - must export a handler
+const { executeQuery } = require('../db-config.js');
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+exports.handler = async (event, context) => {
+  // Set CORS headers for Netlify
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  // Handle OPTIONS request (CORS preflight)
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: '',
+    };
   }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // Only allow GET requests
+  if (event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' }),
+    };
   }
 
-  console.log('=== USER-BASIC API CALL ===');
-  console.log('Query parameters:', req.query);
+  console.log('=== USER-BASIC API CALL (Netlify) ===');
+  
+  // Parse query parameters from Netlify event
+  const params = event.queryStringParameters || {};
+  const { mt5_name } = params;
 
-  let { mt5_name } = req.query;
+  console.log('Query parameters:', params);
 
   if (!mt5_name) {
-    return res.status(400).json({ 
-      success: false,
-      error: 'Missing mt5_name parameter' 
-    });
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: 'Missing mt5_name parameter',
+      }),
+    };
   }
 
   try {
@@ -39,10 +60,14 @@ export default async function handler(req, res) {
     console.log('Database query results:', userResult.rows.length, 'rows found');
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: 'User not found',
+        }),
+      };
     }
 
     const row = userResult.rows[0];
@@ -53,25 +78,33 @@ export default async function handler(req, res) {
       return date.toISOString().replace('T', ' ').substring(0, 19);
     };
 
-    return res.status(200).json({
-      success: true,
-      user: {
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        state: row.state,
-        created_at: formatPostgresDate(row.created_at),
-        mt5_name: row.mt5_name,
-        mt5_state: row.mt5_state,
-        mt5_created_at: formatPostgresDate(row.mt5_created_at)
-      }
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        user: {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          state: row.state,
+          created_at: formatPostgresDate(row.created_at),
+          mt5_name: row.mt5_name,
+          mt5_state: row.mt5_state,
+          mt5_created_at: formatPostgresDate(row.mt5_created_at),
+        },
+      }),
+    };
 
   } catch (error) {
     console.error('Database error:', error);
-    return res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: error.message,
+      }),
+    };
   }
-}
+};
